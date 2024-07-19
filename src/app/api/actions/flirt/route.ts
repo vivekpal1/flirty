@@ -10,13 +10,9 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
+  SystemProgram,
 } from "@solana/web3.js";
-import {
-  createAssociatedTokenAccountInstruction,
-  createTransferInstruction,
-  getAssociatedTokenAddress,
-} from "@solana/spl-token";
-import { FLIRTY_PROGRAM_ID, USDC_MINT, FLIRTY_FEE_ACCOUNT, CHAT_FEE } from "@/const";
+import { FLIRTY_PROGRAM_ID } from "@/const";
 
 export const GET = async (req: Request) => {
   try {
@@ -54,7 +50,7 @@ export const GET = async (req: Request) => {
       headers: ACTIONS_CORS_HEADERS,
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     let message = "An unknown error occurred";
     if (typeof err == "string") message = err;
     return new Response(message, {
@@ -83,43 +79,22 @@ export const POST = async (req: Request) => {
       });
     }
 
-    const connection = new Connection(process.env.SOLANA_RPC!);
+    const connection = new Connection(process.env.SOLANA_RPC || "https://api.mainnet-beta.solana.com");
 
     const transaction = new Transaction();
-
-    const userUsdcAccount = await getAssociatedTokenAddress(
-      USDC_MINT,
-      account
-    );
-
-    const accountInfo = await connection.getAccountInfo(userUsdcAccount);
-    if (!accountInfo) {
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          account,
-          userUsdcAccount,
-          account,
-          USDC_MINT
-        )
-      );
-    }
-
-    transaction.add(
-      createTransferInstruction(
-        userUsdcAccount,
-        FLIRTY_FEE_ACCOUNT,
-        account,
-        CHAT_FEE
-      )
-    );
 
     transaction.add(
       new TransactionInstruction({
         keys: [
           { pubkey: account, isSigner: true, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         ],
         programId: FLIRTY_PROGRAM_ID,
-        data: Buffer.from(JSON.stringify({ message, image }), "utf8"),
+        data: Buffer.from(JSON.stringify({ 
+          action: "initChat",
+          message, 
+          image 
+        }), "utf8"),
       })
     );
 
@@ -129,7 +104,7 @@ export const POST = async (req: Request) => {
     const payload: ActionPostResponse = await createPostResponse({
       fields: {
         transaction,
-        message: `Sending flirty message: "${message}"`,
+        message: `Initializing chat with message: "${message}"`,
       },
     });
 
@@ -137,7 +112,7 @@ export const POST = async (req: Request) => {
       headers: ACTIONS_CORS_HEADERS,
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     let message = "An unknown error occurred";
     if (typeof err == "string") message = err;
     return new Response(message, {
