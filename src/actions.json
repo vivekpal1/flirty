@@ -1,0 +1,8 @@
+{
+    "rules": [
+      {
+        "pathPattern": "/api/actions/flirt",
+        "apiPath": "/api/actions/flirt"
+      }
+    ]
+  }
