@@ -1,40 +1,39 @@
-import { Connection, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
-import { FLIRTY_PROGRAM_ID } from "@/const";
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { Connection, Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
+import { getActionIdentityFromEnv, createPostResponse } from '../../../utils/actionIdentity';
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
+  const { message, senderAccount, recipientAccount } = await request.json();
+
+  if (!message || !senderAccount || !recipientAccount) {
+    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  }
+
   try {
-    const { message, senderAccount } = await req.json();
+    const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com');
+    const sender = new PublicKey(senderAccount);
+    const recipient = new PublicKey(recipientAccount);
 
-    if (!message || !senderAccount) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const connection = new Connection(process.env.SOLANA_RPC || "https://api.mainnet-beta.solana.com");
-
-    const transaction = new Transaction();
-
-    transaction.add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: new PublicKey(senderAccount), isSigner: true, isWritable: true },
-        ],
-        programId: FLIRTY_PROGRAM_ID,
-        data: Buffer.from(JSON.stringify({ 
-          action: "sendMessage",
-          message, 
-        }), "utf8"),
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: sender,
+        toPubkey: recipient,
+        lamports: 1000, // Small amount for demonstration
       })
     );
 
-    transaction.feePayer = new PublicKey(senderAccount);
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    const actionIdentity = getActionIdentityFromEnv();
+    const postResponse = await createPostResponse({
+      fields: {
+        transaction,
+        message: 'Message sent successfully',
+      },
+      actionIdentity,
+    });
 
-    const serializedTransaction = transaction.serialize({requireAllSignatures: false}).toString('base64');
-
-    return NextResponse.json({ transaction: serializedTransaction });
+    return NextResponse.json(postResponse);
   } catch (error) {
-    console.error('Error in send-message route:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error creating transaction:', error);
+    return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
   }
 }
