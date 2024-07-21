@@ -1,55 +1,67 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { useRouter } from 'next/navigation';
+import { Button, Text } from '@/app/components';
 
-export default function Home() {
-  const [recipientPublicKey, setRecipientPublicKey] = useState('');
-  const wallet = useWallet();
+const LandingPage = () => {
   const router = useRouter();
+  const wallet = useWallet();
 
-  const startChat = () => {
-    if (!recipientPublicKey) {
-      alert('Please enter a recipient public key');
-      return;
-    }
+  const navigateToWinkCreation = () => {
+    router.push('/wink');
+  };
 
-    router.push(`/chat?recipient=${recipientPublicKey}`);
+  const navigateToChats = () => {
+    router.push('/chat');
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-4">Flirty P2P Chat</h1>
-      
-      <div className="mb-4">
-        <WalletMultiButton />
+    <div className="relative h-screen w-screen overflow-hidden flex items-center justify-center">
+      <video
+        autoPlay
+        loop
+        muted
+        className="absolute z-0 w-auto min-w-full min-h-full max-w-none"
+      >
+        <source src="/bg.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+
+      <div className="relative z-10 text-white text-center">
+        <div className="bg-black bg-opacity-50 p-8 rounded-lg backdrop-filter backdrop-blur-sm">
+          <h1 className="text-5xl font-bold mb-6 font-serif">Wink</h1>
+          <p className="text-2xl italic mb-8 font-light">
+          &quot;in the digital age, a wink is worth a thousand words&quot;
+          </p>
+          
+          {wallet.connected ? (
+            <div className="space-y-4">
+              <Button
+                onClick={navigateToWinkCreation}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full transition duration-300 ease-in-out transform hover:scale-105"
+              >
+                Create a Wink
+              </Button>
+              <Button
+                onClick={navigateToChats}
+                className="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-6 rounded-full transition duration-300 ease-in-out transform hover:scale-105"
+              >
+                Your Chats
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <Text variant="body" className="mb-4">Connect your wallet to get started</Text>
+              <WalletMultiButton className="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-full transition duration-300 ease-in-out transform hover:scale-105" />
+            </div>
+          )}
+        </div>
       </div>
-
-      {wallet.connected ? (
-        <>
-          <div className="mb-4">
-            <label className="block mb-2">Recipient&apos;s Public Key:</label>
-            <input 
-              type="text"
-              value={recipientPublicKey} 
-              onChange={(e) => setRecipientPublicKey(e.target.value)}
-              className="w-full p-2 border rounded"
-              placeholder="Enter recipient&apos;s public key"
-            />
-          </div>
-
-          <button 
-            onClick={startChat}
-            className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
-          >
-            Start Chat
-          </button>
-        </>
-      ) : (
-        <p>Please connect your wallet to start chatting.</p>
-      )}
     </div>
   );
-}
+};
+
+export default LandingPage;

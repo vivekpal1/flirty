@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
-
-export default nextConfig;
+const nextConfig = {
+    reactStrictMode: true,
+    images: {
+      domains: ['localhost', 'flirty.vercel.app'],
+    },
+  };
+  
+  export default nextConfig;
