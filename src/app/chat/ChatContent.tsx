@@ -41,7 +41,7 @@ const ChatContent: React.FC = () => {
 
   const initializeSocket = useCallback(() => {
     if (wallet.connected && wallet.publicKey && !socketRef.current) {
-      socketRef.current = io('/api/socketio', {
+      socketRef.current = io('', {
         path: '/api/socketio',
         addTrailingSlash: false,
       });
@@ -57,9 +57,10 @@ const ChatContent: React.FC = () => {
       });
 
       socketRef.current.on('message', async (message: Message) => {
-        if (wallet.publicKey) {
+        if (wallet.publicKey && wallet.signMessage) {
           try {
-            const decryptedContent = await decryptMessage(message.content, wallet.publicKey.toBytes());
+            const signedMessage = await wallet.signMessage(new TextEncoder().encode("Decrypt Message"));
+            const decryptedContent = await decryptMessage(message.content, signedMessage);
             setMessages((prevMessages) => [
               ...prevMessages,
               {
@@ -85,7 +86,7 @@ const ChatContent: React.FC = () => {
         toast.error('Disconnected from chat. Attempting to reconnect...');
       });
     }
-  }, [wallet.connected, wallet.publicKey]);
+  }, [wallet.connected, wallet.publicKey, wallet.signMessage]);
 
   useEffect(() => {
     initializeSocket();
@@ -119,7 +120,8 @@ const ChatContent: React.FC = () => {
         const recipient = conversations.find(conv => conv.id === activeConversation)?.publicKey;
         if (!recipient) throw new Error('Recipient not found');
 
-        const encryptedMessage = await encryptMessage(inputMessage, recipient);
+        const recipientPublicKey = new PublicKey(recipient).toString();
+        const encryptedMessage = await encryptMessage(inputMessage, recipientPublicKey);
         
         const response = await fetch('/api/send-message', {
           method: 'POST',
@@ -129,7 +131,7 @@ const ChatContent: React.FC = () => {
           body: JSON.stringify({
             message: encryptedMessage,
             senderAccount: wallet.publicKey.toString(),
-            recipientAccount: recipient,
+            recipientAccount: recipientPublicKey,
           }),
         });
 
@@ -150,7 +152,7 @@ const ChatContent: React.FC = () => {
           socketRef.current?.emit('message', {
             content: encryptedMessage,
             sender: wallet.publicKey.toString(),
-            recipient: recipient,
+            recipient: recipientPublicKey,
           });
 
           setMessages((prevMessages) => [
@@ -158,7 +160,7 @@ const ChatContent: React.FC = () => {
             { 
               content: inputMessage, 
               sender: wallet.publicKey!.toString(),
-              recipient: recipient,
+              recipient: recipientPublicKey,
               timestamp: Date.now()
             }
           ]);
@@ -166,7 +168,7 @@ const ChatContent: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to send message:', error);
-        toast.error('Failed to send message. Please try again.');
+        toast.error('Failed to send message: ' + (error instanceof Error ? error.message : String(error)));
       } finally {
         setIsLoading(false);
       }
@@ -217,7 +219,7 @@ const ChatContent: React.FC = () => {
         ]);
       } catch (error) {
         console.error('Failed to send image:', error);
-        toast.error('Failed to send image. Please try again.');
+        toast.error('Failed to send image: ' + (error instanceof Error ? error.message : String(error)));
       } finally {
         setIsLoading(false);
       }

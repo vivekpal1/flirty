@@ -1,47 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Connection, Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
-import { ACTIONS_CORS_HEADERS, createPostResponse } from "@solana/actions";
-import { getActionIdentityFromEnv } from '../../../utils/actionIdentity';
+import { Connection, PublicKey, Transaction } from '@solana/web3.js';
+import { createPostResponse, getActionIdentityFromEnv } from '@/utils/actionIdentity';
+import { SystemProgram } from '@solana/web3.js';
 
-export async function POST(request: NextRequest) {
-  const { message, senderAccount, recipientAccount } = await request.json();
-
-  if (!message || !senderAccount || !recipientAccount) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-  }
-
+export async function POST(req: NextRequest) {
   try {
-    const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC || 'https://api.devnet.solana.com');
-    const sender = new PublicKey(senderAccount);
-    const recipient = new PublicKey(recipientAccount);
+    const { message, senderAccount, recipientAccount } = await req.json();
 
-    const transaction = new Transaction().add(
+    if (!message || !senderAccount || !recipientAccount) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC || 'https://api.devnet.solana.com');
+
+    const transaction = new Transaction();
+
+    transaction.add(
       SystemProgram.transfer({
-        fromPubkey: sender,
-        toPubkey: recipient,
-        lamports: 1000, // Small amount for demonstration
+        fromPubkey: new PublicKey(senderAccount),
+        toPubkey: new PublicKey(recipientAccount),
+        lamports: 100000,
       })
     );
 
-    const actionIdentity = getActionIdentityFromEnv();
-    const postResponse = await createPostResponse({
-      fields: {
-        transaction,
-        message: 'Message sent successfully',
-      },
-      actionIdentity,
-    });
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
 
-    return NextResponse.json(postResponse, { headers: ACTIONS_CORS_HEADERS });
+    transaction.feePayer = new PublicKey(senderAccount);
+
+    try {
+      const actionIdentity = getActionIdentityFromEnv();
+
+      const response = await createPostResponse({
+        fields: {
+          transaction,
+          message: 'Message sent successfully',
+        },
+        actionIdentity,
+      });
+
+      return NextResponse.json(response);
+    } catch (error) {
+      console.error('Error creating post response:', error);
+      return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
+    }
   } catch (error) {
-    console.error('Error creating transaction:', error);
-    return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500, headers: ACTIONS_CORS_HEADERS });
+    console.error('Error processing request:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export const OPTIONS = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: ACTIONS_CORS_HEADERS,
-  });
-};
