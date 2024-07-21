@@ -1,8 +1,8 @@
 {
     "rules": [
       {
-        "pathPattern": "/api/actions/flirt",
-        "apiPath": "/api/actions/flirt"
+        "pathPattern": "/api/actions/wink",
+        "apiPath": "/api/actions/wink"
       }
     ]
   }

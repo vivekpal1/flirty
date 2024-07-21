@@ -39,62 +39,51 @@ const ChatContent: React.FC = () => {
   const wallet = useWallet();
   const socketRef = useRef<Socket | null>(null);
 
-  const initializeSocket = useCallback(async () => {
-    if (wallet.connected && wallet.publicKey) {
-      try {
-        const response = await fetch('/api/socket');
-        if (!response.ok) {
-          throw new Error('Failed to initialize socket');
-        }
+  const initializeSocket = useCallback(() => {
+    if (wallet.connected && wallet.publicKey && !socketRef.current) {
+      socketRef.current = io('/api/socketio', {
+        path: '/api/socketio',
+        addTrailingSlash: false,
+      });
 
-        socketRef.current = io('', {
-          path: '/api/socketio',
-          addTrailingSlash: false,
-        });
+      socketRef.current.on('connect', () => {
+        console.log('Connected to WebSocket');
+        socketRef.current?.emit('join', wallet.publicKey?.toString());
+      });
 
-        socketRef.current.on('connect', () => {
-          console.log('Connected to WebSocket');
-          socketRef.current?.emit('join', wallet.publicKey?.toString());
-        });
+      socketRef.current.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        toast.error('Failed to connect to chat. Please try again.');
+      });
 
-        socketRef.current.on('connect_error', (error) => {
-          console.error('Socket connection error:', error);
-          toast.error('Failed to connect to chat. Please try again.');
-        });
-
-        socketRef.current.on('message', async (message: Message) => {
-          if (wallet.publicKey) {
-            try {
-              const decryptedContent = await decryptMessage(message.content, wallet.publicKey.toBytes());
-              setMessages((prevMessages) => [
-                ...prevMessages,
-                {
-                  ...message,
-                  content: decryptedContent,
-                  timestamp: Date.now()
-                }
-              ]);
-            } catch (error) {
-              console.error('Failed to decrypt message:', error);
-              toast.error('Failed to decrypt a message');
-            }
+      socketRef.current.on('message', async (message: Message) => {
+        if (wallet.publicKey) {
+          try {
+            const decryptedContent = await decryptMessage(message.content, wallet.publicKey.toBytes());
+            setMessages((prevMessages) => [
+              ...prevMessages,
+              {
+                ...message,
+                content: decryptedContent,
+                timestamp: Date.now()
+              }
+            ]);
+          } catch (error) {
+            console.error('Failed to decrypt message:', error);
+            toast.error('Failed to decrypt a message');
           }
-        });
+        }
+      });
 
-        socketRef.current.on('error', (error) => {
-          console.error('Socket error:', error);
-          toast.error('An error occurred in the chat. Please try again.');
-        });
+      socketRef.current.on('error', (error) => {
+        console.error('Socket error:', error);
+        toast.error('An error occurred in the chat. Please try again.');
+      });
 
-        socketRef.current.on('disconnect', (reason) => {
-          console.log('Disconnected from WebSocket:', reason);
-          toast.error('Disconnected from chat. Attempting to reconnect...');
-        });
-
-      } catch (error) {
-        console.error('Failed to initialize socket:', error);
-        toast.error('Failed to initialize chat. Please try again.');
-      }
+      socketRef.current.on('disconnect', (reason) => {
+        console.log('Disconnected from WebSocket:', reason);
+        toast.error('Disconnected from chat. Attempting to reconnect...');
+      });
     }
   }, [wallet.connected, wallet.publicKey]);
 
@@ -121,9 +110,9 @@ const ChatContent: React.FC = () => {
         setActiveConversation(conversations[conversationIndex].id);
       }
     }
-  }, [searchParams, conversations]);
+  }, [searchParams]);
 
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if (inputMessage.trim() && wallet.publicKey && activeConversation) {
       setIsLoading(true);
       try {
@@ -182,9 +171,9 @@ const ChatContent: React.FC = () => {
         setIsLoading(false);
       }
     }
-  };
+  }, [inputMessage, wallet.publicKey, activeConversation, conversations, wallet.signTransaction]);
 
-  const sendImage = async (file: File) => {
+  const sendImage = useCallback(async (file: File) => {
     if (file && wallet.publicKey && activeConversation) {
       setIsLoading(true);
       try {
@@ -233,7 +222,7 @@ const ChatContent: React.FC = () => {
         setIsLoading(false);
       }
     }
-  };
+  }, [wallet.publicKey, activeConversation, conversations]);
 
   const filteredConversations = conversations.filter(conv => 
     conv.name.toLowerCase().includes(searchTerm.toLowerCase())

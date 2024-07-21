@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
-    swcMinify: true,
+    swcMinify: false,
     images: {
       domains: ['wink.vercel.app', 'localhost', 'flirty.vercel.app', 'pbs.twimg.com'],
     },

@@ -1,44 +1,62 @@
-import { Server as SocketIOServer } from 'socket.io';
-import { NextApiRequest } from 'next';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-let io: SocketIOServer;
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
-export async function GET(req: NextApiRequest) {
-  if (!io) {
-    console.log('Socket is initializing');
-    // For Next.js 14 App Router, we don't have access to req.socket.server
-    // We'll need to create a new SocketIOServer instance
-    io = new SocketIOServer({
-      path: '/api/socketio',
-      addTrailingSlash: false,
-    });
+const clients = new Map<string, WebSocket>();
 
-    io.on('connection', (socket) => {
-      console.log('A user connected');
+export function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const publicKey = searchParams.get('publicKey');
 
-      socket.on('join', (publicKey: string) => {
-        socket.join(publicKey);
-        console.log(`User ${publicKey} joined`);
-      });
-
-      socket.on('message', (message: any) => {
-        io.to(message.recipient).emit('message', message);
-      });
-
-      socket.on('disconnect', () => {
-        console.log('A user disconnected');
-      });
-    });
-  } else {
-    console.log('Socket is already initialized');
+  if (!publicKey) {
+    return new NextResponse('Missing publicKey', { status: 400 });
   }
 
-  return NextResponse.json({ message: 'Socket server is running' }, { status: 200 });
+  const upgradeHeader = req.headers.get('Upgrade');
+  if (upgradeHeader !== 'websocket') {
+    return new NextResponse('Expected Upgrade: websocket', { status: 426 });
+  }
+  try {
+    const { socket, response } = (req as any).upgradeWebSocket();
+    
+    socket.onopen = () => {
+      console.log(`WebSocket opened for ${publicKey}`);
+      clients.set(publicKey, socket);
+    };
+
+    socket.onmessage = (event: { data: string; }) => {
+      const message = JSON.parse(event.data);
+      const recipientSocket = clients.get(message.recipient);
+      if (recipientSocket) {
+        recipientSocket.send(JSON.stringify(message));
+      }
+    };
+
+    socket.onclose = () => {
+      console.log(`WebSocket closed for ${publicKey}`);
+      clients.delete(publicKey);
+    };
+
+    return response;
+  } catch (err) {
+    console.error(err);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export async function POST(req: NextRequest) {
+  const data = await req.json();
+  
+  if (data.event === 'message') {
+    const recipientSocket = clients.get(data.recipient);
+    if (recipientSocket) {
+      recipientSocket.send(JSON.stringify(data));
+      return NextResponse.json({ message: 'Message sent' }, { status: 200 });
+    } else {
+      return NextResponse.json({ error: 'Recipient not connected' }, { status: 404 });
+    }
+  }
+
+  return NextResponse.json({ error: 'Invalid event' }, { status: 400 });
+}

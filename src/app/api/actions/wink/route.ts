@@ -12,7 +12,7 @@ import {
   TransactionInstruction,
   SystemProgram,
 } from "@solana/web3.js";
-import { FLIRTY_PROGRAM_ID } from "@/const";
+import { WINK_PROGRAM_ID } from "@/const";
 
 export const GET = async (req: Request) => {
   try {
@@ -89,7 +89,7 @@ export const POST = async (req: Request) => {
           { pubkey: account, isSigner: true, isWritable: true },
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         ],
-        programId: FLIRTY_PROGRAM_ID,
+        programId: WINK_PROGRAM_ID,
         data: Buffer.from(JSON.stringify({ 
           action: "initChat",
           message, 
