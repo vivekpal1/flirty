@@ -1,19 +1,20 @@
 import { Server as SocketIOServer } from 'socket.io';
+import { NextApiRequest } from 'next';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
 let io: SocketIOServer;
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextApiRequest) {
   if (!io) {
     console.log('Socket is initializing');
-    // @ts-ignore
-    io = new SocketIOServer(req.socket.server, {
-      path: '/api/socket',
+    // For Next.js 14 App Router, we don't have access to req.socket.server
+    // We'll need to create a new SocketIOServer instance
+    io = new SocketIOServer({
+      path: '/api/socketio',
       addTrailingSlash: false,
     });
 
-    io.on('connection', socket => {
+    io.on('connection', (socket) => {
       console.log('A user connected');
 
       socket.on('join', (publicKey: string) => {
@@ -29,9 +30,6 @@ export async function GET(req: NextRequest) {
         console.log('A user disconnected');
       });
     });
-
-    // @ts-ignore
-    req.socket.server.io = io;
   } else {
     console.log('Socket is already initialized');
   }
@@ -39,5 +37,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ message: 'Socket server is running' }, { status: 200 });
 }
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};

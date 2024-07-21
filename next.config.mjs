@@ -1,9 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
+    swcMinify: true,
     images: {
-      domains: ['localhost', 'flirty.vercel.app'],
+      domains: ['wink.vercel.app', 'localhost', 'flirty.vercel.app', 'pbs.twimg.com'],
     },
-  };
-  
-  export default nextConfig;
+    webpack: (config, { isServer }) => {
+        if (!isServer) {
+          config.resolve.fallback = {
+            ...config.resolve.fallback,
+            fs: false,
+            net: false,
+            tls: false,
+          };
+        }
+        return config;
+      },
+    };
+    
+    export default nextConfig;
