@@ -7,20 +7,18 @@ interface WinkPreviewProps {
   description: string;
   message: string;
   bid: string;
-  blinkUrl: string;
 }
 
-const WinkPreview: React.FC<WinkPreviewProps> = ({ image, description, message, bid, blinkUrl }) => {
+const WinkPreview: React.FC<WinkPreviewProps> = ({ image, description, message, bid }) => {
   return (
     <Card className="p-4">
       <h2 className="text-2xl font-bold mb-4">Wink Preview</h2>
       {image && (
-        <Image src={image} alt="Wink" width={300} height={300} className="mb-4 rounded-lg" />
+        <img src={image} alt="Wink" className="mb-4 rounded-lg max-w-full h-auto" />
       )}
       <Text variant="body" className="mb-2">Description: {description}</Text>
       <Text variant="body" className="mb-2">Initial Message: {message}</Text>
       <Text variant="body" className="mb-2">Bid: {bid} SOL</Text>
-      <Button onClick={() => window.open(blinkUrl, '_blank')}>Open Wink</Button>
     </Card>
   );
 };

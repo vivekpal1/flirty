@@ -4,14 +4,14 @@ import React, { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Connection, Transaction, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { encodeURL } from '@solana/actions';
-import { Card, Text } from '@/app/components';
+import { Card, Text, Button } from '@/app/components';
 import WinkForm from './components/WinkForm';
 import WinkPreview from './components/WinkPreview';
 
-const WinkCreationPage = () => {
+const WinkCreationPage: React.FC = () => {
   const [wink, setWink] = useState<{ image: string; description: string; message: string; bid: string; } | null>(null);
   const [blinkUrl, setBlinkUrl] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
   const wallet = useWallet();
 
   const handleWinkSubmit = async (winkData: { image: string; description: string; message: string; bid: string; }) => {
@@ -48,18 +48,32 @@ const WinkCreationPage = () => {
         lastValidBlockHeight,
       });
 
-      const url = encodeURL({
-        link: new URL(`${window.location.origin}/api/actions/wink`),
-        label: "Create Wink",
-      });
+      const actionUrl = new URL(`${window.location.origin}/api/actions/wink/create`);
+      actionUrl.searchParams.append('image', winkData.image);
+      actionUrl.searchParams.append('description', winkData.description);
+      actionUrl.searchParams.append('message', winkData.message);
+      actionUrl.searchParams.append('bid', winkData.bid);
+      actionUrl.searchParams.append('recipient', wallet.publicKey.toString());
 
-      const blinkUrl = `${window.location.origin}/chat?action=${encodeURIComponent(url.toString())}&image=${encodeURIComponent(winkData.image)}&description=${encodeURIComponent(winkData.description)}&message=${encodeURIComponent(winkData.message)}&bid=${encodeURIComponent(winkData.bid)}&recipient=${encodeURIComponent(wallet.publicKey.toString())}`;
+      const encodedActionUrl = encodeURIComponent(`solana-action:${actionUrl.toString()}`);
+      const generatedBlinkUrl = `${window.location.origin}/chat?action=${encodedActionUrl}`;
 
       setWink(winkData);
-      setBlinkUrl(blinkUrl);
+      setBlinkUrl(generatedBlinkUrl);
     } catch (error) {
       console.error('Failed to create Wink:', error);
       alert('Failed to create Wink. Please ensure you have enough SOL to cover the bid and transaction fees.');
+    }
+  };
+
+  const handleCopyUrl = () => {
+    if (blinkUrl) {
+      navigator.clipboard.writeText(blinkUrl)
+        .then(() => {
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        })
+        .catch(err => console.error('Failed to copy URL: ', err));
     }
   };
 
@@ -78,13 +92,33 @@ const WinkCreationPage = () => {
       {!wink ? (
         <WinkForm onSubmit={handleWinkSubmit} />
       ) : (
-        <WinkPreview
-          image={wink.image}
-          description={wink.description}
-          message={wink.message}
-          bid={wink.bid}
-          blinkUrl={blinkUrl || ''}
-        />
+        <div>
+          <WinkPreview
+            image={wink.image}
+            description={wink.description}
+            message={wink.message}
+            bid={wink.bid}
+          />
+          {blinkUrl && (
+            <div className="mt-4">
+              <Text variant="subheading" className="mb-2">Your Wink URL:</Text>
+              <div className="flex items-center">
+                <input
+                  type="text"
+                  value={blinkUrl}
+                  readOnly
+                  className="flex-grow p-2 border rounded-l"
+                />
+                <Button
+                  onClick={handleCopyUrl}
+                  className="rounded-l-none"
+                >
+                  {isCopied ? 'Copied!' : 'Copy'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
