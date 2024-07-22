@@ -19,7 +19,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden flex items-center justify-center">
+    <div className="relative h-screen w-screen overflow-hidden flex items-center justify-center backdrop-filter bg-black bg-opacity-60 backdrop-blur-lg">
       <video
         autoPlay
         loop
