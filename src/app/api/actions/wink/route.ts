@@ -19,12 +19,11 @@ export const GET = async (req: Request) => {
   try {
     const { searchParams } = new URL(req.url);
     const twitterId = searchParams.get('twitterId') || '';
-    const image = searchParams.get('image') || '';
     const description = searchParams.get('description') || '';
 
     const payload: ActionGetResponse = {
       title: "Interact with a Twitter User",
-      icon: image,
+      icon: '/wink-icon.png',
       description: description,
       label: "Send Message and Bid",
       links: {
@@ -53,13 +52,18 @@ export const GET = async (req: Request) => {
       headers: ACTIONS_CORS_HEADERS,
     });
   } catch (err) {
-    console.error(err);
-    let message = "An unknown error occurred";
-    if (typeof err == "string") message = err;
-    return new Response(message, {
-      status: 400,
-      headers: ACTIONS_CORS_HEADERS,
-    });
+    console.error('Error in GET handler:', err);
+    if (err instanceof Error) {
+      return new Response(JSON.stringify({ error: 'An unexpected error occurred', details: err.message }), {
+        status: 500,
+        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    } else {
+      return new Response(JSON.stringify({ error: 'An unexpected error occurred' }), {
+        status: 500,
+        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
   }
 };
 
@@ -76,6 +80,7 @@ export const POST = async (req: Request) => {
     try {
       account = new PublicKey(body.account);
     } catch (err) {
+      console.error('Invalid account:', err);
       return new Response('Invalid "account" provided', {
         status: 400,
         headers: ACTIONS_CORS_HEADERS,
@@ -84,37 +89,65 @@ export const POST = async (req: Request) => {
 
     const connection = new Connection(process.env.SOLANA_RPC || "https://api.devnet.solana.com");
 
+    try {
+      await connection.getVersion();
+    } catch (err) {
+      console.error('Error connecting to Solana network:', err);
+      return new Response('Unable to connect to Solana network', {
+        status: 500,
+        headers: ACTIONS_CORS_HEADERS,
+      });
+    }
+
     const transaction = new Transaction();
 
     const bidLamports = Math.floor(parseFloat(bid) * LAMPORTS_PER_SOL);
 
-    transaction.add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: account, isSigner: true, isWritable: true },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
-        programId: WINK_PROGRAM_ID,
-        data: Buffer.from(JSON.stringify({ 
-          action: "interactWithTwitterUser",
-          twitterId,
-          message,
-          bid: bidLamports,
-        }), "utf8"),
-      })
-    );
+    try {
+      transaction.add(
+        new TransactionInstruction({
+          keys: [
+            { pubkey: account, isSigner: true, isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          ],
+          programId: WINK_PROGRAM_ID,
+          data: Buffer.from(JSON.stringify({ 
+            action: "interactWithTwitterUser",
+            twitterId,
+            message,
+            bid: bidLamports,
+          }), "utf8"),
+        })
+      );
+    } catch (err) {
+      console.error('Error adding instruction to transaction:', err);
+      throw err;
+    }
 
     transaction.feePayer = account;
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-    const payload: ActionPostResponse = await createPostResponse({
-      fields: {
-        transaction,
-        message: `Interacting with Twitter user ${twitterId}: "${message}" with bid: ${bid} SOL`,
-      },
-    });
+    try {
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.lastValidBlockHeight = lastValidBlockHeight;
+    } catch (err) {
+      console.error('Error getting recent blockhash:', err);
+      throw err;
+    }
 
-    // Add a redirect URL to the chat app
+    let payload: ActionPostResponse;
+    try {
+      payload = await createPostResponse({
+        fields: {
+          transaction,
+          message: `Interacting with Twitter user ${twitterId}: "${message}" with bid: ${bid} SOL`,
+        },
+      });
+    } catch (err) {
+      console.error('Error creating post response:', err);
+      throw err;
+    }
+
     const chatUrl = new URL("/chat", req.url);
     chatUrl.searchParams.set("twitterId", twitterId);
     chatUrl.searchParams.set("message", message);
@@ -127,13 +160,18 @@ export const POST = async (req: Request) => {
       headers: ACTIONS_CORS_HEADERS,
     });
   } catch (err) {
-    console.error(err);
-    let message = "An unknown error occurred";
-    if (typeof err == "string") message = err;
-    return new Response(message, {
-      status: 400,
-      headers: ACTIONS_CORS_HEADERS,
-    });
+    console.error('Unexpected error in POST handler:', err);
+    if (err instanceof Error) {
+      return new Response(JSON.stringify({ error: 'An unexpected error occurred', details: err.message }), {
+        status: 500,
+        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    } else {
+      return new Response(JSON.stringify({ error: 'An unexpected error occurred' }), {
+        status: 500,
+        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
   }
 };
 
