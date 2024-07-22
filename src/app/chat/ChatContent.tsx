@@ -86,7 +86,7 @@ const ChatContent: React.FC = () => {
         toast.error('Disconnected from chat. Attempting to reconnect...');
       });
     }
-  }, [wallet.connected, wallet.publicKey, wallet.signMessage]);
+  }, [wallet, wallet.connected, wallet.publicKey, wallet.signMessage]);
 
   useEffect(() => {
     initializeSocket();
@@ -111,7 +111,7 @@ const ChatContent: React.FC = () => {
         setActiveConversation(conversations[conversationIndex].id);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, conversations]);
 
   const sendMessage = useCallback(async () => {
     if (inputMessage.trim() && wallet.publicKey && activeConversation) {
@@ -224,7 +224,7 @@ const ChatContent: React.FC = () => {
         setIsLoading(false);
       }
     }
-  }, [wallet.publicKey, activeConversation, conversations]);
+  }, [inputMessage, wallet, wallet.publicKey, activeConversation, conversations]);
 
   const filteredConversations = conversations.filter(conv => 
     conv.name.toLowerCase().includes(searchTerm.toLowerCase())

@@ -34,14 +34,19 @@ const WinkCreationPage = () => {
         })
       );
 
-      const { blockhash } = await connection.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
+      transaction.lastValidBlockHeight = lastValidBlockHeight;
       transaction.feePayer = wallet.publicKey;
 
       const signedTransaction = await wallet.signTransaction(transaction);
       const signature = await connection.sendRawTransaction(signedTransaction.serialize());
 
-      await connection.confirmTransaction(signature);
+      await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      });
 
       const url = encodeURL({
         link: new URL(`${window.location.origin}/api/actions/wink`),
@@ -54,7 +59,7 @@ const WinkCreationPage = () => {
       setBlinkUrl(blinkUrl);
     } catch (error) {
       console.error('Failed to create Wink:', error);
-      alert('Failed to create Wink. Please try again.');
+      alert('Failed to create Wink. Please ensure you have enough SOL to cover the bid and transaction fees.');
     }
   };
 

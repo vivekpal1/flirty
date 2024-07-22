@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Button, Input, Text } from '@/app/components';
 
@@ -12,6 +12,7 @@ const WinkForm: React.FC<WinkFormProps> = ({ onSubmit }) => {
   const [message, setMessage] = useState('');
   const [bid, setBid] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const wallet = useWallet();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -24,8 +25,10 @@ const WinkForm: React.FC<WinkFormProps> = ({ onSubmit }) => {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File input change event triggered');
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      console.log('File selected:', file.name);
       const formData = new FormData();
       formData.append('image', file);
       formData.append('senderAccount', wallet.publicKey?.toString() || '');
@@ -34,16 +37,18 @@ const WinkForm: React.FC<WinkFormProps> = ({ onSubmit }) => {
       setIsUploading(true);
 
       try {
+        console.log('Sending upload request');
         const response = await fetch('/api/upload-image', {
           method: 'POST',
           body: formData,
         });
 
         if (!response.ok) {
-          throw new Error('Failed to upload image');
+          throw new Error(`Failed to upload image: ${response.statusText}`);
         }
 
         const data = await response.json();
+        console.log('Upload successful, image URL:', data.imageUrl);
         setImage(data.imageUrl);
       } catch (error) {
         console.error('Failed to upload image:', error);
@@ -51,7 +56,13 @@ const WinkForm: React.FC<WinkFormProps> = ({ onSubmit }) => {
       } finally {
         setIsUploading(false);
       }
+    } else {
+      console.log('No file selected');
     }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -62,14 +73,17 @@ const WinkForm: React.FC<WinkFormProps> = ({ onSubmit }) => {
           accept="image/*"
           onChange={handleImageUpload}
           className="hidden"
-          id="image-upload"
+          ref={fileInputRef}
         />
-        <label htmlFor="image-upload">
-          <Button type="button" disabled={isUploading}>
-            {isUploading ? 'Uploading...' : image ? 'Change Image' : 'Upload Image'}
-          </Button>
-        </label>
-        {image && <Text variant="caption">Image uploaded successfully</Text>}
+        <Button type="button" onClick={handleUploadClick} disabled={isUploading}>
+          {isUploading ? 'Uploading...' : image ? 'Change Image' : 'Upload Image'}
+        </Button>
+        {image && (
+          <div className="mt-2">
+            <Text variant="caption">Image uploaded successfully</Text>
+            <img src={image} alt="Uploaded" className="mt-2 max-w-full h-auto" />
+          </div>
+        )}
       </div>
       <Input
         value={description}
