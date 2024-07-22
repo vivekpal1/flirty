@@ -98,7 +98,6 @@ const ChatContent: React.FC = () => {
   }, [initializeSocket]);
 
   useEffect(() => {
-    // Simulated conversations data
     setConversations([
       { id: 1, name: 'Alice', publicKey: 'ALiCeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', avatar: '/avatar1.jpg', lastMessage: 'Hey there!' },
       { id: 2, name: 'Bob', publicKey: 'BobXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', avatar: '/avatar2.jpg', lastMessage: 'How are you?' },

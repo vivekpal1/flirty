@@ -3,7 +3,7 @@ const nextConfig = {
     reactStrictMode: true,
     swcMinify: false,
     images: {
-      domains: ['wink.vercel.app', 'localhost', 'flirty.vercel.app', 'pbs.twimg.com'],
+      domains: ['winked.vercel.app', 'localhost', 'flirty.vercel.app', 'pbs.twimg.com'],
     },
     webpack: (config, { isServer }) => {
         if (!isServer) {

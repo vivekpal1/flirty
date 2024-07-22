@@ -94,7 +94,6 @@ export const POST = async (req: Request) => {
 
     const transaction = new Transaction();
 
-    // Convert bid from SOL to lamports
     const bidLamports = Math.floor(parseFloat(bid) * LAMPORTS_PER_SOL);
 
     transaction.add(
