@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import {
   ActionPostResponse,
   ACTIONS_CORS_HEADERS,
@@ -63,7 +64,9 @@ export const GET = async (req: Request) => {
   }
 };
 
-export const OPTIONS = GET;
+export const OPTIONS = async (req: Request) => {
+  return NextResponse.json({}, { headers: ACTIONS_CORS_HEADERS });
+};
 
 export const POST = async (req: Request) => {
   try {
