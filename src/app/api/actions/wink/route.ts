@@ -23,7 +23,7 @@ export const GET = async (req: Request) => {
 
     const payload: ActionGetResponse = {
       title: "Interact with a Twitter User",
-      icon: '/wink-icon.png',
+      icon: '/bg.png',
       description: description,
       label: "Send Message and Bid",
       links: {
