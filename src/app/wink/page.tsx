@@ -3,19 +3,19 @@
 import React, { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Connection, Transaction, PublicKey } from '@solana/web3.js';
+import { Connection, Transaction, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { encodeURL } from '@solana/actions';
 import { Card, Text } from '@/app/components';
 import WinkForm from './components/WinkForm';
 import WinkPreview from './components/WinkPreview';
 
 const WinkCreationPage = () => {
-  const [wink, setWink] = useState<{ image: string; description: string; message: string; } | null>(null);
+  const [wink, setWink] = useState<{ image: string; description: string; message: string; bid: string; } | null>(null);
   const [blinkUrl, setBlinkUrl] = useState<string | null>(null);
   const wallet = useWallet();
 
-  const handleWinkSubmit = async (winkData: { image: string; description: string; message: string; }) => {
-    if (!wallet.publicKey) {
+  const handleWinkSubmit = async (winkData: { image: string; description: string; message: string; bid: string; }) => {
+    if (!wallet.publicKey || !wallet.signTransaction) {
       alert('Please connect your wallet first.');
       return;
     }
@@ -23,24 +23,32 @@ const WinkCreationPage = () => {
     try {
       const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC || 'https://api.devnet.solana.com');
       
-      // Create a transaction for the Wink
+      const receiverPublicKey = new PublicKey('vivgdu332GMEk3FaupQa92gQjYd9LX6TMgjMVsLaCu4');
+      const bidAmount = parseFloat(winkData.bid) * LAMPORTS_PER_SOL;
+
       const transaction = new Transaction().add(
-        // Add your program instruction here
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: receiverPublicKey,
+          lamports: bidAmount,
+        })
       );
 
-      // Get the latest blockhash
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = wallet.publicKey;
 
-      // Create the Solana Action URL
+      const signedTransaction = await wallet.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+
+      await connection.confirmTransaction(signature);
+
       const url = encodeURL({
         link: new URL(`${window.location.origin}/api/actions/wink`),
         label: "Create Wink",
       });
 
-      // Create the blink URL
-      const blinkUrl = `${window.location.origin}/?action=${encodeURIComponent(url.toString())}`;
+      const blinkUrl = `${window.location.origin}/chat?action=${encodeURIComponent(url.toString())}&image=${encodeURIComponent(winkData.image)}&description=${encodeURIComponent(winkData.description)}&message=${encodeURIComponent(winkData.message)}&bid=${encodeURIComponent(winkData.bid)}&recipient=${encodeURIComponent(wallet.publicKey.toString())}`;
 
       setWink(winkData);
       setBlinkUrl(blinkUrl);
@@ -69,6 +77,7 @@ const WinkCreationPage = () => {
           image={wink.image}
           description={wink.description}
           message={wink.message}
+          bid={wink.bid}
           blinkUrl={blinkUrl || ''}
         />
       )}
