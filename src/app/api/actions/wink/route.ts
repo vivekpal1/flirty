@@ -17,25 +17,22 @@ import { WINK_PROGRAM_ID } from "@/const";
 
 export const GET = async (req: Request) => {
   try {
-    const requestUrl = new URL(req.url);
-    const baseHref = new URL("/api/actions/wink", requestUrl.origin).toString();
+    const { searchParams } = new URL(req.url);
+    const twitterId = searchParams.get('twitterId') || '';
+    const image = searchParams.get('image') || '';
+    const description = searchParams.get('description') || '';
 
     const payload: ActionGetResponse = {
-      title: "Interact with a Wink",
-      icon: "https://winked.vercel.app/wink-icon.png",
-      description: "Send a message and bid on a Wink!",
-      label: "Send Message",
+      title: "Interact with a Twitter User",
+      icon: image,
+      description: description,
+      label: "Send Message and Bid",
       links: {
         actions: [
           {
             label: "Send Message and Bid", 
-            href: `${baseHref}?winkId={winkId}&message={message}&bid={bid}`,
+            href: `${req.url}&message={message}&bid={bid}`,
             parameters: [
-              {
-                name: "winkId",
-                label: "Wink ID",
-                required: true,
-              },
               {
                 name: "message",
                 label: "Your message",
@@ -71,7 +68,7 @@ export const OPTIONS = GET;
 export const POST = async (req: Request) => {
   try {
     const { searchParams } = new URL(req.url);
-    const { winkId, message, bid } = validatedQueryParams(searchParams);
+    const { twitterId, message, bid } = validatedQueryParams(searchParams);
 
     const body: ActionPostRequest = await req.json();
 
@@ -99,8 +96,8 @@ export const POST = async (req: Request) => {
         ],
         programId: WINK_PROGRAM_ID,
         data: Buffer.from(JSON.stringify({ 
-          action: "interactWithWink",
-          winkId,
+          action: "interactWithTwitterUser",
+          twitterId,
           message,
           bid: bidLamports,
         }), "utf8"),
@@ -113,11 +110,20 @@ export const POST = async (req: Request) => {
     const payload: ActionPostResponse = await createPostResponse({
       fields: {
         transaction,
-        message: `Interacting with Wink ${winkId}: "${message}" with bid: ${bid} SOL`,
+        message: `Interacting with Twitter user ${twitterId}: "${message}" with bid: ${bid} SOL`,
       },
     });
 
-    return Response.json(payload, {
+    // Add a redirect URL to the chat app
+    const chatUrl = new URL("/chat", req.url);
+    chatUrl.searchParams.set("twitterId", twitterId);
+    chatUrl.searchParams.set("message", message);
+    chatUrl.searchParams.set("bid", bid);
+
+    return Response.json({
+      ...payload,
+      redirectUrl: chatUrl.toString(),
+    }, {
       headers: ACTIONS_CORS_HEADERS,
     });
   } catch (err) {
@@ -132,16 +138,16 @@ export const POST = async (req: Request) => {
 };
 
 function validatedQueryParams(searchParams: URLSearchParams) {
-  let winkId: string = searchParams.get("winkId") || "";
+  let twitterId: string = searchParams.get("twitterId") || "";
   let message: string = searchParams.get("message") || "";
   let bid: string = searchParams.get("bid") || "";
 
-  if (!winkId) throw "Wink ID is required";
+  if (!twitterId) throw "Twitter ID is required";
   if (!message) throw "Message is required";
   if (!bid || isNaN(parseFloat(bid))) throw "Bid must be a valid number";
 
   return {
-    winkId: decodeURIComponent(winkId),
+    twitterId: decodeURIComponent(twitterId),
     message: decodeURIComponent(message),
     bid,
   };
