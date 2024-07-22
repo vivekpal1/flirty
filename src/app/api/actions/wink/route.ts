@@ -11,34 +11,40 @@ import {
   Transaction,
   TransactionInstruction,
   SystemProgram,
+  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import { WINK_PROGRAM_ID } from "@/const";
 
 export const GET = async (req: Request) => {
   try {
     const requestUrl = new URL(req.url);
-    const baseHref = new URL("/api/actions/flirt", requestUrl.origin).toString();
+    const baseHref = new URL("/api/actions/wink", requestUrl.origin).toString();
 
     const payload: ActionGetResponse = {
-      title: "Get Your Hands Flirty",
-      icon: "https://flirty.ink/flirty-icon.png",
-      description: "Send a flirty message and open a chat!",
-      label: "Flirt",
+      title: "Interact with a Wink",
+      icon: "https://winked.vercel.app/wink-icon.png",
+      description: "Send a message and bid on a Wink!",
+      label: "Send Message",
       links: {
         actions: [
           {
-            label: "Send Your Message", 
-            href: `${baseHref}?message={message}&image={image}`,
+            label: "Send Message and Bid", 
+            href: `${baseHref}?winkId={winkId}&message={message}&bid={bid}`,
             parameters: [
+              {
+                name: "winkId",
+                label: "Wink ID",
+                required: true,
+              },
               {
                 name: "message",
                 label: "Your message",
                 required: true,
               },
               {
-                name: "image",
-                label: "URL of your image",
-                required: false,
+                name: "bid",
+                label: "Bid amount in SOL",
+                required: true,
               },
             ],
           },
@@ -64,8 +70,8 @@ export const OPTIONS = GET;
 
 export const POST = async (req: Request) => {
   try {
-    const requestUrl = new URL(req.url);
-    const { message, image } = validatedQueryParams(requestUrl);
+    const { searchParams } = new URL(req.url);
+    const { winkId, message, bid } = validatedQueryParams(searchParams);
 
     const body: ActionPostRequest = await req.json();
 
@@ -79,9 +85,11 @@ export const POST = async (req: Request) => {
       });
     }
 
-    const connection = new Connection(process.env.SOLANA_RPC || "https://api.mainnet-beta.solana.com");
+    const connection = new Connection(process.env.SOLANA_RPC || "https://api.devnet.solana.com");
 
     const transaction = new Transaction();
+
+    const bidLamports = Math.floor(parseFloat(bid) * LAMPORTS_PER_SOL);
 
     transaction.add(
       new TransactionInstruction({
@@ -91,9 +99,10 @@ export const POST = async (req: Request) => {
         ],
         programId: WINK_PROGRAM_ID,
         data: Buffer.from(JSON.stringify({ 
-          action: "initChat",
-          message, 
-          image 
+          action: "interactWithWink",
+          winkId,
+          message,
+          bid: bidLamports,
         }), "utf8"),
       })
     );
@@ -104,7 +113,7 @@ export const POST = async (req: Request) => {
     const payload: ActionPostResponse = await createPostResponse({
       fields: {
         transaction,
-        message: `Initializing chat with message: "${message}"`,
+        message: `Interacting with Wink ${winkId}: "${message}" with bid: ${bid} SOL`,
       },
     });
 
@@ -122,22 +131,18 @@ export const POST = async (req: Request) => {
   }
 };
 
-function validatedQueryParams(requestUrl: URL) {
-  let message: string = "";
-  let image: string | undefined;
+function validatedQueryParams(searchParams: URLSearchParams) {
+  let winkId: string = searchParams.get("winkId") || "";
+  let message: string = searchParams.get("message") || "";
+  let bid: string = searchParams.get("bid") || "";
 
-  if (requestUrl.searchParams.get("message")) {
-    message = decodeURIComponent(requestUrl.searchParams.get("message")!);
-  } else {
-    throw "Message is required";
-  }
-
-  if (requestUrl.searchParams.get("image")) {
-    image = decodeURIComponent(requestUrl.searchParams.get("image")!);
-  }
+  if (!winkId) throw "Wink ID is required";
+  if (!message) throw "Message is required";
+  if (!bid || isNaN(parseFloat(bid))) throw "Bid must be a valid number";
 
   return {
-    message,
-    image,
+    winkId: decodeURIComponent(winkId),
+    message: decodeURIComponent(message),
+    bid,
   };
 }

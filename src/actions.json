@@ -1,12 +1,12 @@
 {
   "rules": [
     {
-      "pathPattern": "/chat",
-      "apiPath": "/api/actions/wink/start-chat"
+      "pathPattern": "/wink/*",
+      "apiPath": "/api/actions/wink"
     },
     {
-      "pathPattern": "/wink",
-      "apiPath": "/api/actions/wink/create"
+      "pathPattern": "/chat",
+      "apiPath": "/api/actions/wink"
     }
   ]
 }
