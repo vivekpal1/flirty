@@ -48,22 +48,18 @@ export const GET = async (req: Request) => {
       },
     };
 
-    return Response.json(payload, {
-      headers: ACTIONS_CORS_HEADERS,
+    return new Response(JSON.stringify(payload), {
+      headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     console.error('Error in GET handler:', err);
-    if (err instanceof Error) {
-      return new Response(JSON.stringify({ error: 'An unexpected error occurred', details: err.message }), {
-        status: 500,
-        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
-      });
-    } else {
-      return new Response(JSON.stringify({ error: 'An unexpected error occurred' }), {
-        status: 500,
-        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
-      });
-    }
+    return new Response(JSON.stringify({ 
+      error: 'An unexpected error occurred', 
+      details: err instanceof Error ? err.message : String(err) 
+    }), {
+      status: 500,
+      headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
   }
 };
 
@@ -81,9 +77,9 @@ export const POST = async (req: Request) => {
       account = new PublicKey(body.account);
     } catch (err) {
       console.error('Invalid account:', err);
-      return new Response('Invalid "account" provided', {
+      return new Response(JSON.stringify({ error: 'Invalid "account" provided' }), {
         status: 400,
-        headers: ACTIONS_CORS_HEADERS,
+        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
       });
     }
 
@@ -93,9 +89,9 @@ export const POST = async (req: Request) => {
       await connection.getVersion();
     } catch (err) {
       console.error('Error connecting to Solana network:', err);
-      return new Response('Unable to connect to Solana network', {
+      return new Response(JSON.stringify({ error: 'Unable to connect to Solana network' }), {
         status: 500,
-        headers: ACTIONS_CORS_HEADERS,
+        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
       });
     }
 
@@ -121,7 +117,10 @@ export const POST = async (req: Request) => {
       );
     } catch (err) {
       console.error('Error adding instruction to transaction:', err);
-      throw err;
+      return new Response(JSON.stringify({ error: 'Error creating transaction' }), {
+        status: 500,
+        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
     }
 
     transaction.feePayer = account;
@@ -132,7 +131,10 @@ export const POST = async (req: Request) => {
       transaction.lastValidBlockHeight = lastValidBlockHeight;
     } catch (err) {
       console.error('Error getting recent blockhash:', err);
-      throw err;
+      return new Response(JSON.stringify({ error: 'Error getting recent blockhash' }), {
+        status: 500,
+        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
     }
 
     let payload: ActionPostResponse;
@@ -145,7 +147,10 @@ export const POST = async (req: Request) => {
       });
     } catch (err) {
       console.error('Error creating post response:', err);
-      throw err;
+      return new Response(JSON.stringify({ error: 'Error creating post response' }), {
+        status: 500,
+        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
     }
 
     const chatUrl = new URL("/chat", req.url);
@@ -153,25 +158,21 @@ export const POST = async (req: Request) => {
     chatUrl.searchParams.set("message", message);
     chatUrl.searchParams.set("bid", bid);
 
-    return Response.json({
+    return new Response(JSON.stringify({
       ...payload,
       redirectUrl: chatUrl.toString(),
-    }, {
-      headers: ACTIONS_CORS_HEADERS,
+    }), {
+      headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     console.error('Unexpected error in POST handler:', err);
-    if (err instanceof Error) {
-      return new Response(JSON.stringify({ error: 'An unexpected error occurred', details: err.message }), {
-        status: 500,
-        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
-      });
-    } else {
-      return new Response(JSON.stringify({ error: 'An unexpected error occurred' }), {
-        status: 500,
-        headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
-      });
-    }
+    return new Response(JSON.stringify({ 
+      error: 'An unexpected error occurred', 
+      details: err instanceof Error ? err.message : String(err) 
+    }), {
+      status: 500,
+      headers: { ...ACTIONS_CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
   }
 };
 
@@ -180,9 +181,9 @@ function validatedQueryParams(searchParams: URLSearchParams) {
   let message: string = searchParams.get("message") || "";
   let bid: string = searchParams.get("bid") || "";
 
-  if (!twitterId) throw "Twitter ID is required";
-  if (!message) throw "Message is required";
-  if (!bid || isNaN(parseFloat(bid))) throw "Bid must be a valid number";
+  if (!twitterId) throw new Error("Twitter ID is required");
+  if (!message) throw new Error("Message is required");
+  if (!bid || isNaN(parseFloat(bid))) throw new Error("Bid must be a valid number");
 
   return {
     twitterId: decodeURIComponent(twitterId),
